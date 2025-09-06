@@ -1,10 +1,6 @@
 # Node modules
 node_modules/
 
-# TypeScript output
-*.js
-*.js.map
-
 # Plugin build files
 *.iinaplgz
 
