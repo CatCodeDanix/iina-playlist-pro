@@ -1,0 +1,13 @@
+{
+  "name": "Playlist Pro",
+  "identifier": "com.danialabdoli.playlistpro",
+  "version": "1.0.0",
+  "author": {
+    "name": "Danial Abdoli"
+  },
+  "entry": "main.js",
+  "description": "An IINA plugin to manage Online and Local playlists, including automatic discovery of all media files in nested folders for Local playlists, clipboard URL playlists, and playlist management (play, rename, delete).",
+  "permissions": ["show-osd", "show-alert", "file-system"],
+  "ghRepo": "CatCodeDanix/iina-playlist-pro",
+  "ghVersion": 1
+}

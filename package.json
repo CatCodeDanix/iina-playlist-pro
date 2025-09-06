@@ -1,0 +1,23 @@
+{
+  "name": "iina-playlist-pro",
+  "version": "1.0.0",
+  "description": "An IINA plugin to manage Online and Local playlists, including clipboard URL playlists and nested folder scanning.",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "zip -r Playlist-Pro-1.0.0.iinaplgz Info.json main.js"
+  },
+  "keywords": [
+    "iina",
+    "playlist",
+    "video",
+    "audio",
+    "plugin",
+    "typescript"
+  ],
+  "author": "Danial Abdoli",
+  "license": "MIT",
+  "type": "commonjs",
+  "devDependencies": {
+    "iina-plugin-definition": "^0.99.3"
+  }
+}

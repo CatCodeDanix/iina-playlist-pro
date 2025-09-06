@@ -1,0 +1,26 @@
+# Node modules
+node_modules/
+
+# TypeScript output
+*.js
+*.js.map
+
+# Plugin build files
+*.iinaplgz
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# MacOS
+.DS_Store
+
+# IDE/editor settings
+.vscode/
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# Optional: compiled distribution folder
+dist/
