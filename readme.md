@@ -29,25 +29,6 @@ https://github.com/CatCodeDanix/iina-playlist-pro
 
 ---
 
-## Building from Source
-
-For developers or contributors:
-
-```bash
-# Install dependencies
-npm install
-
-# Compile TypeScript
-npx tsc
-
-# Build plugin archive
-npm run build
-```
-
-This will generate `Playlist-Pro-1.0.0.iinaplgz`, ready for installation in IINA.
-
----
-
 ## Supported File Types
 
 - **Video:** `mp4`, `mkv`, `avi`, `mov`
