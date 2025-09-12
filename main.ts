@@ -51,7 +51,11 @@ function rebuildMenus() {
   }
 
   // Core actions
-  menu.addItem(menu.item("Paste URLs as Playlist", playClipboardUrls));
+  menu.addItem(
+    menu.item("Paste URLs as Playlist", playClipboardUrls, {
+      keyBinding: "Meta+Alt+v",
+    })
+  );
   menu.addItem(
     menu.item(
       "Open folder & sub-folder contents as Playlist",
@@ -62,7 +66,9 @@ function rebuildMenus() {
   if (onlinePlaylists.length > 0) {
     const root = menu.item("Online Playlists");
     for (const pl of onlinePlaylists) {
-      const entry = menu.item(pl.title);
+      const entry = menu.item(pl.title, () => {
+        utils.open(pl.path);
+      });
       entry.addSubMenuItem(
         menu.item("Play", () => {
           utils.open(pl.path);
@@ -97,7 +103,7 @@ function rebuildMenus() {
   if (localPlaylists.length > 0) {
     const root = menu.item("Local Playlists");
     for (const pl of localPlaylists) {
-      const entry = menu.item(pl.title);
+      const entry = menu.item(pl.title, () => utils.open(pl.path));
       entry.addSubMenuItem(menu.item("Play", () => utils.open(pl.path)));
       entry.addSubMenuItem(
         menu.item("Rename", async () => {
