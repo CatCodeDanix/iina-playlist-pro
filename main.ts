@@ -31,7 +31,9 @@ function save(type: "online" | "local") {
   } else {
     file.write(localPath, JSON.stringify(localPlaylists, null, 2));
   }
-  rebuildMenus();
+  // We do NOT call rebuildMenus() here automatically if this was triggered
+  // by a "Refresh" click, otherwise the menu might flicker or close.
+  // We only rebuild if strictly necessary or manually called.
 }
 
 function load() {
@@ -43,6 +45,15 @@ function load() {
   }
 }
 
+// ---------------- M3U Generator (New Helper) ----------------
+
+function createM3UContent(files: string[]): string {
+  const header = "#EXTM3U";
+  // We create the M3U structure: Header -> (Info Line, Path Line)...
+  const lines = files.flatMap((p) => [`#EXTINF:-1, ${getBasename(p)}`, p]);
+  return [header, ...lines].join("\n");
+}
+
 // ---------------- Menu building ----------------
 
 function rebuildMenus() {
@@ -50,7 +61,7 @@ function rebuildMenus() {
     menu.removeAllItems();
   }
 
-  // Core actions
+  // --- Standard Actions ---
   menu.addItem(
     menu.item("Paste URLs as Playlist", playClipboardUrls, {
       keyBinding: "Meta+Alt+v",
@@ -63,6 +74,9 @@ function rebuildMenus() {
     )
   );
 
+  menu.addItem(menu.separator());
+
+  // --- Online Playlists ---
   if (onlinePlaylists.length > 0) {
     const root = menu.item("Online Playlists");
     for (const pl of onlinePlaylists) {
@@ -80,6 +94,7 @@ function rebuildMenus() {
           if (newName) {
             pl.title = ensureUniqueName(onlinePlaylists, newName);
             save("online");
+            rebuildMenus();
           }
         })
       );
@@ -92,6 +107,7 @@ function rebuildMenus() {
             onlinePlaylists = onlinePlaylists.filter((p) => p.path !== pl.path);
             file.delete(pl.path);
             save("online");
+            rebuildMenus();
           }
         })
       );
@@ -100,35 +116,80 @@ function rebuildMenus() {
     menu.addItem(root);
   }
 
+  // --- Local Playlists ---
   if (localPlaylists.length > 0) {
     const root = menu.item("Local Playlists");
     for (const pl of localPlaylists) {
-      const entry = menu.item(pl.title, () => utils.open(pl.path));
-      entry.addSubMenuItem(menu.item("Play", () => utils.open(pl.path)));
+      // CHANGE 1: The main click now calls refreshAndPlayLocal
+      const entry = menu.item(`${pl.title} (${pl.count})`, () =>
+        refreshAndPlayLocal(pl)
+      );
+
+      entry.addSubMenuItem(
+        menu.item("Play (Auto-update)", () => refreshAndPlayLocal(pl))
+      );
+
       entry.addSubMenuItem(
         menu.item("Rename", async () => {
           const newName = utils.prompt("Enter new name") ?? pl.title;
           if (newName) {
             pl.title = ensureUniqueName(localPlaylists, newName);
             save("local");
+            rebuildMenus();
           }
         })
       );
       entry.addSubMenuItem(
         menu.item("Delete", async () => {
           const res = await utils.ask(
-            "Are you sure you want to delete this playlist?"
+            "Remove this playlist from list? (File remains)"
           );
-
           if (res) {
             localPlaylists = localPlaylists.filter((p) => p.path !== pl.path);
             save("local");
+            rebuildMenus();
           }
         })
       );
       root.addSubMenuItem(entry);
     }
     menu.addItem(root);
+  }
+
+  // --- Global Management (Change 2) ---
+  if (onlinePlaylists.length > 0 || localPlaylists.length > 0) {
+    menu.addItem(menu.separator());
+    const manage = menu.item("Manage Playlists");
+
+    if (onlinePlaylists.length > 0) {
+      manage.addSubMenuItem(
+        menu.item("Remove All Online Playlists", async () => {
+          if (await utils.ask("Delete all online playlists?")) {
+            // Delete actual files
+            onlinePlaylists.forEach((pl) => {
+              if (file.exists(pl.path)) file.delete(pl.path);
+            });
+            onlinePlaylists = [];
+            save("online");
+            rebuildMenus();
+          }
+        })
+      );
+    }
+
+    if (localPlaylists.length > 0) {
+      manage.addSubMenuItem(
+        menu.item("Remove All Local Playlists", async () => {
+          if (await utils.ask("Clear all local playlist entries?")) {
+            // We do not delete local M3U files as they are in user folders
+            localPlaylists = [];
+            save("local");
+            rebuildMenus();
+          }
+        })
+      );
+    }
+    menu.addItem(manage);
   }
 
   if (!firstMenuBuild) {
@@ -174,6 +235,7 @@ async function playClipboardUrls() {
 
   onlinePlaylists.push({ title, path: filePath, count: urls.length });
   save("online");
+  rebuildMenus();
 
   utils.open(filePath);
   core.osd(`▶️ ${urls.length} items loaded`);
@@ -183,7 +245,7 @@ async function playClipboardUrls() {
 
 // File extension check for playable content
 function isPlayable(filename: string): boolean {
-  return /\.(mp4|mkv|avi|mov|mp3|flac|m4a)$/i.test(filename);
+  return /\.(mp4|mkv|avi|mov|mp3|flac|m4a|webm|wmv)$/i.test(filename);
 }
 
 // Natural sort comparator (e.g., "1" before "10")
@@ -191,7 +253,6 @@ function naturalCompare(a: string, b: string): number {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
 }
 
-// Extract the filename from a full path
 function getBasename(
   path: string,
   { withExtension = true }: { withExtension?: boolean } = {
@@ -203,18 +264,24 @@ function getBasename(
   if (withExtension) return name;
 
   const dotIndex = name.lastIndexOf(".");
-  if (dotIndex === -1) return name; // no extension
+  if (dotIndex === -1) return name;
   return name.slice(0, dotIndex);
 }
 
 function joinPath(parent: string, child: string): string {
-  // Safely join parent + child into a proper path
   if (parent.endsWith("/")) return parent + child;
   return `${parent}/${child}`;
 }
 
+// Helper to get directory from a file path
+function getDirectory(filePath: string): string {
+  return filePath.substring(0, filePath.lastIndexOf("/"));
+}
+
 function walkDir(dirPath: string): string[] {
-  const pathStr = String(dirPath); // ensure plain JS string
+  const pathStr = String(dirPath);
+
+  if (!file.exists(pathStr)) return [];
 
   let entries;
   try {
@@ -224,7 +291,6 @@ function walkDir(dirPath: string): string[] {
     return [];
   }
 
-  // Separate dirs and playable files, with natural sort
   let dirs = [];
   let files = [];
   try {
@@ -241,15 +307,11 @@ function walkDir(dirPath: string): string[] {
 
   let collected: string[] = [];
   try {
-    collected = files.map((f) => {
-      const filePath = joinPath(pathStr, f.filename); // full path
-      return filePath;
-    });
+    collected = files.map((f) => joinPath(pathStr, f.filename));
   } catch (err) {
     console.log(`walkDir: ERROR mapping files in "${pathStr}" ->`, err);
   }
 
-  // Recurse into subdirectories
   for (const d of dirs) {
     const subPath = joinPath(pathStr, d.filename);
     try {
@@ -265,15 +327,58 @@ function walkDir(dirPath: string): string[] {
 
 function countM3UItems(contents: string): number {
   return contents
-    .split(/\r?\n/) // split by lines
+    .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith("#")).length; // ignore comments, blank lines
+    .filter((line) => line && !line.startsWith("#")).length;
+}
+
+// CHANGE 1 (Implementation): Logic to refresh an existing playlist
+async function refreshAndPlayLocal(pl: PlaylistItem) {
+  // 1. Identify the folder. pl.path is ".../Folder/playlist.m3u8", so we need ".../Folder"
+  const folderPath = getDirectory(pl.path);
+
+  if (!file.exists(folderPath)) {
+    core.osd("❌ Original folder not found");
+    return;
+  }
+
+  core.osd(`Scanning ${pl.title}...`);
+
+  // 2. Scan for files
+  const allFiles = walkDir(folderPath);
+
+  if (allFiles.length === 0) {
+    core.osd("⚠️ No files found");
+    return;
+  }
+
+  // 3. Generate new content and overwrite
+  const m3uContent = createM3UContent(allFiles);
+  file.write(pl.path, m3uContent);
+
+  // 4. Update internal stats
+  const oldCount = pl.count;
+  pl.count = allFiles.length;
+  save("local"); // Persist the new count to JSON
+
+  // 5. Open
+  utils.open(pl.path);
+
+  // 6. Feedback
+  if (pl.count !== oldCount) {
+    core.osd(`▶️ Updated: ${pl.count} items (was ${oldCount})`);
+    rebuildMenus(); // Update the count number in the menu UI
+  } else {
+    core.osd(`▶️ Loaded ${pl.count} items`);
+  }
 }
 
 async function openFolderAsPlaylist() {
   const folderPath = await utils.chooseFile("Choose contents directory", {
     chooseDir: true,
   });
+
+  if (!folderPath) return;
 
   const title = ensureUniqueName(
     localPlaylists,
@@ -282,47 +387,48 @@ async function openFolderAsPlaylist() {
 
   const playlistPath = joinPath(folderPath, "playlist.m3u8");
 
-  if (file.exists(playlistPath)) {
-    console.log("Playlist file exists!");
-    utils.open(playlistPath);
+  // Even if it exists, we might want to refresh it?
+  // For now, let's stick to your original logic: if exists, just load it.
+  // But we now wire it up to our new refresh logic if it exists but isn't in our list.
 
+  if (file.exists(playlistPath)) {
     const target = localPlaylists.find((item) => item.path === playlistPath);
 
-    const content = file.read(playlistPath);
-    const count = countM3UItems(content);
-
     if (!target) {
-      localPlaylists.push({
-        title,
-        count,
-        path: playlistPath,
-      });
+      // It exists on disk, but not in our plugin memory. Add it.
+      const content = file.read(playlistPath);
+      const count = countM3UItems(content);
+
+      const newItem = { title, count, path: playlistPath };
+      localPlaylists.push(newItem);
       save("local");
+      rebuildMenus();
+
+      // We immediately run the refresh logic to ensure it's up to date
+      refreshAndPlayLocal(newItem);
+      return;
+    } else {
+      // It exists and is in memory. Just play (refreshing happens inside)
+      refreshAndPlayLocal(target);
+      return;
     }
-
-    return;
   }
 
-  if (!folderPath.toString()) {
-    console.log("Folder path corrupted!");
-    return;
-  }
-
+  // New creation logic
   const allFiles = walkDir(folderPath);
 
   if (allFiles.length === 0) {
-    console.log("No playable files found in the selected folder!");
+    console.log("No playable files found!");
     return;
   }
 
-  const header = "#EXTM3U";
-  const lines = allFiles.flatMap((p) => [`#EXTINF:-1, ${getBasename(p)}`, p]);
-  const m3uContent = [header, ...lines].join("\n");
-
+  // REUSE helper
+  const m3uContent = createM3UContent(allFiles);
   file.write(playlistPath, m3uContent);
 
   localPlaylists.push({ title, path: playlistPath, count: allFiles.length });
   save("local");
+  rebuildMenus();
 
   utils.open(playlistPath);
   core.osd(`${allFiles.length} items added`);
