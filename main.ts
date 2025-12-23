@@ -4,7 +4,7 @@ let firstMenuBuild = true;
 
 interface PlaylistItem {
   title: string;
-  path: string; // The file we ask IINA to play (External initially, then Internal)
+  path: string; // The file we ask IINA to play (Internal @data path)
   scanPath?: string; // The actual folder containing the media files
   count: number;
 }
@@ -28,7 +28,6 @@ function ensureUniqueName(list: PlaylistItem[], name: string): string {
 
 // Generates a safe filename for the @data folder
 function getSafeInternalFilename(title: string): string {
-  // Replaces non-alphanumeric chars with underscore, keeps it clean
   const safeTitle = title.replace(/[^a-z0-9]/gi, "_").replace(/_+/g, "_");
   return `@data/local_${safeTitle}.m3u8`;
 }
@@ -50,6 +49,15 @@ function load() {
   }
 }
 
+// ---------------- Safe Open Helper ----------------
+
+function safeOpen(path: string) {
+  // Resolve full path and use utils.open to behave like a standard file open
+  // This prevents the "closing all windows" crash/behavior.
+  const fullPath = utils.resolvePath(path);
+  utils.open(fullPath);
+}
+
 // ---------------- M3U Generator ----------------
 
 function createM3UContent(files: string[]): string {
@@ -69,7 +77,7 @@ function rebuildMenus() {
     menu.removeAllItems();
   }
 
-  // --- Standard Actions ---
+  // Core actions
   menu.addItem(
     menu.item("Paste URLs as Playlist", playClipboardUrls, {
       keyBinding: "Meta+Alt+v",
@@ -88,12 +96,13 @@ function rebuildMenus() {
   if (onlinePlaylists.length > 0) {
     const root = menu.item("Online Playlists");
     for (const pl of onlinePlaylists) {
+      // Standard open, no rebuilding needed here
       const entry = menu.item(pl.title, () => {
-        core.open(pl.path);
+        safeOpen(pl.path);
       });
       entry.addSubMenuItem(
         menu.item("Play", () => {
-          core.open(pl.path);
+          safeOpen(pl.path);
         })
       );
       entry.addSubMenuItem(
@@ -102,7 +111,7 @@ function rebuildMenus() {
           if (newName) {
             pl.title = ensureUniqueName(onlinePlaylists, newName);
             save("online");
-            rebuildMenus();
+            setTimeout(() => rebuildMenus(), 50);
           }
         })
       );
@@ -115,7 +124,7 @@ function rebuildMenus() {
             onlinePlaylists = onlinePlaylists.filter((p) => p.path !== pl.path);
             if (file.exists(pl.path)) file.delete(pl.path);
             save("online");
-            rebuildMenus();
+            setTimeout(() => rebuildMenus(), 50);
           }
         })
       );
@@ -128,7 +137,7 @@ function rebuildMenus() {
   if (localPlaylists.length > 0) {
     const root = menu.item("Local Playlists");
     for (const pl of localPlaylists) {
-      // AUTO-REFRESH LOGIC: Click updates and plays
+      // AUTO-REFRESH LOGIC: Checks for new files, updates m3u8, then plays.
       const entry = menu.item(`${pl.title} (${pl.count})`, () =>
         refreshAndPlayLocal(pl)
       );
@@ -143,7 +152,7 @@ function rebuildMenus() {
           if (newName) {
             pl.title = ensureUniqueName(localPlaylists, newName);
             save("local");
-            rebuildMenus();
+            setTimeout(() => rebuildMenus(), 50);
           }
         })
       );
@@ -152,13 +161,12 @@ function rebuildMenus() {
           const res = await utils.ask("Remove this playlist from list?");
           if (res) {
             localPlaylists = localPlaylists.filter((p) => p.path !== pl.path);
-            // Only delete the file if it's inside our plugin data.
-            // Never delete the user's external file.
+            // Only delete internal cache files
             if (pl.path.startsWith("@data") && file.exists(pl.path)) {
               file.delete(pl.path);
             }
             save("local");
-            rebuildMenus();
+            setTimeout(() => rebuildMenus(), 50);
           }
         })
       );
@@ -181,7 +189,7 @@ function rebuildMenus() {
             });
             onlinePlaylists = [];
             save("online");
-            rebuildMenus();
+            setTimeout(() => rebuildMenus(), 50);
           }
         })
       );
@@ -192,14 +200,13 @@ function rebuildMenus() {
         menu.item("Remove All Local Playlists", async () => {
           if (await utils.ask("Clear all local playlist entries?")) {
             localPlaylists.forEach((pl) => {
-              // Only cleanup internal cache files
               if (pl.path.startsWith("@data") && file.exists(pl.path)) {
                 file.delete(pl.path);
               }
             });
             localPlaylists = [];
             save("local");
-            rebuildMenus();
+            setTimeout(() => rebuildMenus(), 50);
           }
         })
       );
@@ -250,9 +257,9 @@ async function playClipboardUrls() {
 
   onlinePlaylists.push({ title, path: filePath, count: urls.length });
   save("online");
-  rebuildMenus();
+  setTimeout(() => rebuildMenus(), 50);
 
-  core.open(filePath);
+  safeOpen(filePath);
   core.osd(`▶️ ${urls.length} items loaded`);
 }
 
@@ -337,23 +344,21 @@ function walkDir(dirPath: string): string[] {
   return collected;
 }
 
-// --- The Robust Auto-Refresh Logic ---
 async function refreshAndPlayLocal(pl: PlaylistItem) {
   // 1. Identify where to scan
-  // If we have a stored scanPath, use it. If not (old playlist), infer it from the old path.
   let folderPath = pl.scanPath;
   if (!folderPath) {
     folderPath = getDirectory(pl.path);
     console.log(`Migrating playlist scan path to: ${folderPath}`);
   }
 
-  // 2. Scan (Read-only usually works fine)
   if (!file.exists(folderPath)) {
     core.osd("❌ Original folder not found");
     return;
   }
 
   core.osd(`Scanning ${pl.title}...`);
+
   const allFiles = walkDir(folderPath);
 
   if (allFiles.length === 0) {
@@ -361,8 +366,7 @@ async function refreshAndPlayLocal(pl: PlaylistItem) {
     return;
   }
 
-  // 3. Write to @data (The Fix)
-  // Even if the playlist started externally, we update it in @data to guarantee no permission errors.
+  // 3. Write to @data to guarantee permissions
   const targetInternalPath = getSafeInternalFilename(pl.title);
   const m3uContent = createM3UContent(allFiles);
 
@@ -374,19 +378,21 @@ async function refreshAndPlayLocal(pl: PlaylistItem) {
     return;
   }
 
-  // 4. Update the stored object
+  // 4. Update stored stats
   const oldCount = pl.count;
   pl.count = allFiles.length;
-  pl.path = targetInternalPath; // Point to the safe internal file from now on
-  pl.scanPath = folderPath; // Ensure we never lose track of the source
+  pl.path = targetInternalPath;
+  pl.scanPath = folderPath;
   save("local");
 
-  // 5. Play
-  core.open(targetInternalPath);
+  // 5. Play immediately
+  safeOpen(targetInternalPath);
 
+  // 6. Only rebuild menu if the count CHANGED (Prevents crash)
   if (pl.count !== oldCount) {
     core.osd(`▶️ Updated: ${pl.count} items`);
-    rebuildMenus();
+    // We use setTimeout to decouple the UI update from the click event
+    setTimeout(() => rebuildMenus(), 100);
   } else {
     core.osd(`▶️ Loaded ${pl.count} items`);
   }
@@ -411,35 +417,30 @@ async function openFolderAsPlaylist() {
   }
   const m3uContent = createM3UContent(allFiles);
 
-  // Requirement: "Add the playlist in the external path too"
-  // We try to write to the external folder initially (usually allowed via chooseFile)
+  // Backup to external (best effort)
   const externalPath = joinPath(folderPath, "playlist.m3u8");
   try {
     file.write(externalPath, m3uContent);
-    console.log("Created external backup:", externalPath);
   } catch (e) {
-    console.log("Could not write external file (sandbox), skipping backup.");
+    console.log("Skipping external backup (sandbox)");
   }
 
-  // Requirement: "Name files in data folder correctly"
-  // We use the internal path for the plugin's main tracking to ensure future updates work.
-  // (Alternatively, we could track the external path initially, but the first refresh
-  //  would migrate it anyway. Starting internal is cleaner for the plugin logic).
+  // Save to internal
   const internalPath = getSafeInternalFilename(title);
   file.write(internalPath, m3uContent);
 
   const newItem: PlaylistItem = {
     title,
-    path: internalPath, // Use internal path for reliability
-    scanPath: folderPath, // Store source for scanning
+    path: internalPath,
+    scanPath: folderPath,
     count: allFiles.length,
   };
 
   localPlaylists.push(newItem);
   save("local");
-  rebuildMenus();
+  setTimeout(() => rebuildMenus(), 50);
 
-  core.open(internalPath);
+  safeOpen(internalPath);
   core.osd(`${allFiles.length} items added`);
 }
 
