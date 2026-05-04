@@ -1,12 +1,13 @@
 {
   "compilerOptions": {
-    "lib": ["es6", "es7", "esnext"],
+    "target": "ES2020",
+    "lib": ["ESNext"],
     "sourceMap": false,
+    "esModuleInterop": true,
+    "moduleResolution": "bundler",
     "skipLibCheck": true,
-    "target": "es6",
-    "module": "es6",
-    "types": ["iina-plugin-definition"]
+    "types": ["iina-plugin-definition"],
+    "removeComments": true
   },
-  "include": ["main.ts"],
-  "compileOnSave": true
+  "include": ["src/**/*.ts", "temp/*.ts"]
 }
