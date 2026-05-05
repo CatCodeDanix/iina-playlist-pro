@@ -14,7 +14,12 @@
 ### 📂 Local Playlists (Auto-Updating)
 
 - **Folder Scanning:** Automatically discover all playable media in a selected folder and its subfolders.
-- **Auto-Refresh:** Simply click an existing playlist in the menu to re-scan the folder. If you've added or removed files from your computer, the playlist updates automatically before playing.
+- **Auto-Refresh:** Simply click an existing playlist in the menu to re-scan the folder. If you've added or removed files, the playlist updates automatically before playing.
+- **Missing Folder Recovery:** If a playlist's source folder has been moved or deleted, you'll be prompted to relocate it or remove the playlist from your list.
+
+### 🎞️ Subtitles
+
+- **Auto-Load:** External subtitle files (`.srt`, `.ass`, `.ssa`, `.vtt`) in the same directory as the video are automatically loaded when playback starts. Language-specific and commentary tracks are supported.
 
 ### 🛠 Management
 
@@ -57,10 +62,11 @@ https://github.com/CatCodeDanix/iina-playlist-pro
 ### Updating a Local Playlist
 
 No manual steps required! Just click the playlist name in the menu to play it. The plugin checks the folder for changes and updates the file list instantly.
+If the folder can no longer be found (e.g. it was moved or renamed), the plugin will ask whether you'd like to locate it again or remove the playlist.
 
 ### ⚠️ Note on Playlist Files
 
-To ensure that playlists can **auto-refresh** without permission errors, this plugin saves the active `.m3u8` file in IINA's internal data folder (`@data/`).
+To ensure that playlists can **auto-refresh** without macOS sandbox restrictions, this plugin saves the active `.m3u8` file in IINA's internal data folder (`@data/`).
 
 - **Internal File:** The active file used by the plugin. It updates automatically when you click the playlist menu item.
 - **External File:** When you first create a local playlist, a `playlist.m3u8` file is also created in your selected media folder as a backup. Please note that this external file is **static** and will **not** update automatically when you add or remove files.
