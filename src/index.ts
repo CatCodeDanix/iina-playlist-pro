@@ -1,6 +1,7 @@
 import { console, event } from "./iina";
 import { rebuildMenus } from "./menuBuilder";
 import { load } from "./storage";
+import { loadSubtitlesFromCurrentDir } from "./subtitleLoader";
 
 // ---------------- Event Listeners ----------------
 
@@ -22,6 +23,10 @@ event.on("iina.window-main.changed", (isMain: boolean) => {
     load();
     rebuildMenus();
   }
+});
+
+event.on("iina.file-loaded", (url: string) => {
+  loadSubtitlesFromCurrentDir(url);
 });
 
 // ---------------- Init ----------------
