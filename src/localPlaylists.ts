@@ -1,6 +1,6 @@
 // ---------------- Folder → Local playlist ----------------
 import { rebuildMenus } from "./menuBuilder";
-import { localPlaylists, save } from "./storage";
+import { localPlaylists, save, setPlaylists } from "./storage";
 import { PlaylistItem } from "./types";
 import {
   createM3UContent,
@@ -74,29 +74,72 @@ function walkDir(dirPath: string): string[] {
   return collected;
 }
 
-export function refreshAndPlayLocal(pl: PlaylistItem) {
-  // 1. Identify where to scan
+export async function refreshAndPlayLocal(pl: PlaylistItem) {
+  // 1. Identify which folder to scan
   let folderPath = pl.scanPath;
   if (!folderPath) {
     folderPath = getDirectory(pl.path);
     console.log(`Migrating playlist scan path to: ${folderPath}`);
   }
 
+  // Handle missing folder interactively
   if (!file.exists(folderPath)) {
-    core.osd("❌ Original folder not found");
-    return;
+    // Ask user what to do
+    const locate = await utils.ask(
+      `The folder for playlist "${pl.title}" can no longer be found at:\n` +
+        `${folderPath}\n\n` +
+        `Would you like to locate it again?`,
+    );
+
+    if (locate) {
+      // Open directory picker
+      const newPath = await utils.chooseFile(
+        "Select the new location for this playlist’s folder",
+        { chooseDir: true },
+      );
+      if (!newPath) {
+        core.osd("❌ Cancelled – playlist location not updated.");
+        return;
+      }
+      // Update and save the new scan path
+      pl.scanPath = newPath;
+      save("local");
+      folderPath = newPath;
+      // Continue to scan the new folder below
+    } else {
+      // User doesn't want to locate – offer deletion
+      const del = await utils.ask(
+        `Do you want to remove the playlist "${pl.title}" from the list?`,
+      );
+      if (del) {
+        // Remove from stored array
+        setPlaylists(
+          "local",
+          localPlaylists.filter((p) => p.path !== pl.path),
+        );
+        // Delete the cached .m3u8 file if it’s inside @data
+        if (pl.path.startsWith("@data") && file.exists(pl.path)) {
+          file.delete(pl.path);
+        }
+        save("local");
+        rebuildMenus();
+        core.osd(`🗑 Playlist "${pl.title}" removed.`);
+      } else {
+        core.osd("ℹ️ Playlist location unchanged.");
+      }
+      return; // Stop here – nothing to play
+    }
   }
 
+  // 2. Folder exists (original or newly chosen): scan and create M3U
   core.osd(`Scanning ${pl.title}...`);
 
   const allFiles = walkDir(folderPath);
-
   if (allFiles.length === 0) {
     core.osd("⚠️ No files found");
     return;
   }
 
-  // 3. Write to @data to guarantee permissions
   const targetInternalPath = getSafeInternalFilename(pl.title);
   const m3uContent = createM3UContent(allFiles);
 
@@ -108,17 +151,14 @@ export function refreshAndPlayLocal(pl: PlaylistItem) {
     return;
   }
 
-  // 4. Update stored stats
   const oldCount = pl.count;
   pl.count = allFiles.length;
   pl.path = targetInternalPath;
   pl.scanPath = folderPath;
   save("local");
 
-  // 5. Play immediately
   safeOpen(targetInternalPath);
 
-  // 6. Only rebuild menu if the count CHANGED (Prevents crash)
   if (pl.count !== oldCount) {
     core.osd(`▶️ Updated: ${pl.count} items`);
     rebuildMenus();
