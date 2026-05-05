@@ -18,5 +18,7 @@ yarn-error.log*
 *.sublime-workspace
 *.sublime-project
 
-# Optional: compiled distribution folder
+# Optional
 dist/
+temp/
+release/
