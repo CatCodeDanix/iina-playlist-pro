@@ -1,13 +1,8 @@
 # Node modules
 node_modules/
 
-# Plugin build files
-*.iinaplgz
-
 # Logs
 npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
 
 # MacOS
 .DS_Store
@@ -15,10 +10,7 @@ yarn-error.log*
 # IDE/editor settings
 .vscode/
 .idea/
-*.sublime-workspace
-*.sublime-project
 
 # Optional
-dist/
 temp/
 release/
