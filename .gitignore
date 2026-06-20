@@ -19,7 +19,6 @@ yarn-error.log*
 *.sublime-project
 
 # Optional
-dist/
 temp/
 release/
 develop.md
