@@ -11,7 +11,7 @@ import {
 import { console, core, utils, file } from "./iina";
 
 function isPlayable(filename: string): boolean {
-  return /\.(mp4|mkv|avi|mov|mp3|flac|m4a|webm|wmv)$/i.test(filename);
+  return /\.(mp4|mkv|avi|mov|mp3|flac|m4a|webm|wmv|ts)$/i.test(filename);
 }
 
 function naturalCompare(a: string, b: string): number {

@@ -1,6 +1,6 @@
 {
   "name": "iina-playlist-pro",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "An IINA plugin to manage Online and Local playlists, including clipboard URL playlists and nested folder scanning.",
   "scripts": {
     "build": "rollup -c",
