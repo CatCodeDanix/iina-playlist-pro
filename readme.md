@@ -77,7 +77,7 @@ To ensure that playlists can **auto-refresh** without macOS sandbox restrictions
 
 The plugin automatically detects the following formats:
 
-- **Video:** `mp4`, `mkv`, `avi`, `mov`, `webm`, `wmv`
+- **Video:** `mp4`, `mkv`, `avi`, `mov`, `webm`, `wmv`. `ts`
 - **Audio:** `mp3`, `flac`, `m4a`
 
 > **Note:** Local playlists include all supported files found in the selected folder and all nested subfolders.
