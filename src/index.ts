@@ -9,7 +9,6 @@ import { loadSubtitlesFromCurrentDir } from "./subtitleLoader";
 let isFirstFocus = true;
 
 event.on("iina.window-main.changed", (isMain: boolean) => {
-  console.log("it works! pluginjs");
   if (isMain) {
     if (isFirstFocus) {
       // Skip the redundant update on startup

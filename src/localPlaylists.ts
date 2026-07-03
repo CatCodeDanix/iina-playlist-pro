@@ -7,12 +7,11 @@ import {
   ensureUniqueName,
   getSafeInternalFilename,
   safeOpen,
+  isPlayableMedia,
 } from "./utils";
 import { console, core, utils, file } from "./iina";
 
-function isPlayable(filename: string): boolean {
-  return /\.(mp4|mkv|avi|mov|mp3|flac|m4a|webm|wmv|ts)$/i.test(filename);
-}
+const BLACKLISTED_DIRS = ["node_modules", ".git", "src", "dist", "build"];
 
 function naturalCompare(a: string, b: string): number {
   return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
@@ -27,7 +26,7 @@ function getDirectory(filePath: string): string {
   return filePath.substring(0, filePath.lastIndexOf("/"));
 }
 
-function walkDir(dirPath: string): string[] {
+async function walkDir(dirPath: string): Promise<string[]> {
   const pathStr = String(dirPath);
 
   if (!file.exists(pathStr)) return [];
@@ -41,14 +40,30 @@ function walkDir(dirPath: string): string[] {
   }
 
   let dirs = [];
-  let files = [];
+  let validFiles: string[] = [];
+
   try {
     dirs = entries
-      .filter((e) => e.isDir)
+      .filter(
+        (e) => e.isDir && !BLACKLISTED_DIRS.includes(e.filename.toLowerCase()),
+      )
       .sort((a, b) => naturalCompare(a.filename, b.filename));
-    files = entries
-      .filter((e) => !e.isDir && isPlayable(e.filename))
-      .sort((a, b) => naturalCompare(a.filename, b.filename));
+
+    const files = entries.filter((e) => !e.isDir);
+    const filePromises = files.map(async (f) => {
+      const isPlayable = await isPlayableMedia(
+        f.filename,
+        joinPath(pathStr, f.filename),
+      );
+      return isPlayable ? f.filename : null;
+    });
+
+    const fileResults = await Promise.all(filePromises);
+    for (const result of fileResults) {
+      if (result !== null) validFiles.push(result);
+    }
+
+    validFiles.sort((a, b) => naturalCompare(a, b));
   } catch (err) {
     console.log(`walkDir: ERROR filtering/sorting "${pathStr}" ->`, err);
     return [];
@@ -56,19 +71,24 @@ function walkDir(dirPath: string): string[] {
 
   let collected: string[] = [];
   try {
-    collected = files.map((f) => joinPath(pathStr, f.filename));
+    collected = validFiles.map((f) => joinPath(pathStr, f));
   } catch (err) {
     console.log(`walkDir: ERROR mapping files in "${pathStr}" ->`, err);
   }
 
-  for (const d of dirs) {
+  const dirPromises = dirs.map(async (d) => {
     const subPath = joinPath(pathStr, d.filename);
     try {
-      const sub = walkDir(subPath);
-      collected.push(...sub);
+      return await walkDir(subPath);
     } catch (err) {
       console.log(`walkDir: ERROR in recursion for "${subPath}" ->`, err);
+      return [];
     }
+  });
+
+  const dirResults = await Promise.all(dirPromises);
+  for (const sub of dirResults) {
+    collected.push(...sub);
   }
 
   return collected;
@@ -134,7 +154,7 @@ export async function refreshAndPlayLocal(pl: PlaylistItem) {
   // 2. Folder exists (original or newly chosen): scan and create M3U
   core.osd(`Scanning ${pl.title}...`);
 
-  const allFiles = walkDir(folderPath);
+  const allFiles = await walkDir(folderPath);
   if (allFiles.length === 0) {
     core.osd("⚠️ No files found");
     return;
@@ -179,7 +199,7 @@ export async function openFolderAsPlaylist() {
     folderPath.split("/").pop() || "Folder",
   );
 
-  const allFiles = walkDir(folderPath);
+  const allFiles = await walkDir(folderPath);
   if (allFiles.length === 0) {
     core.osd("⚠️ No playable files found!");
     return;

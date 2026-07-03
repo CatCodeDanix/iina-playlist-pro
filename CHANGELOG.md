@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-07-03
+
+### Fixed
+
+- **Conflict Resolution:** Resolved an issue where local deep-scans mistakenly added TypeScript source code files (`.ts`) to video playlists. The plugin now correctly validates macOS MIME types/file signatures to distinguish between TypeScript files and real MPEG Transport Streams.
+- **Scanner Performance Optimization:** Added automatic path-filtering to skip standard development directories (`node_modules`, `.git`, `src`, `dist`, `build`) to speed up folder scanning.
+
 ## [1.4.0] - 2026-06-20
 
 ### Added
