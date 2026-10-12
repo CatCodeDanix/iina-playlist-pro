@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-01
+
+### Added
+
+- **Stream Recording:** New "Record Stream" menu (`Cmd+Opt+R` to start/stop). Saves online streams to disk while they play, using mpv's `stream-record` (no re-encoding).
+- **Auto-record:** Optional toggle to record every online stream automatically, one file per playlist item. Existing files are never overwritten.
+- **Custom save location:** "Change Recordings Folder..." and "Reset Recordings Folder" menu items. The choice is remembered. Default folder: `~/Movies/IINA Recordings`.
+- **Open Recordings Folder** shortcut.
+
 ## [1.4.1] - 2026-07-03
 
 ### Fixed

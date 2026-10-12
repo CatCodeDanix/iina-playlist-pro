@@ -1,5 +1,6 @@
 import { console, event } from "./iina";
 import { rebuildMenus } from "./menuBuilder";
+import { initRecorder, loadRecorderSettings } from "./recorder";
 import { load } from "./storage";
 import { loadSubtitlesFromCurrentDir } from "./subtitleLoader";
 
@@ -20,6 +21,7 @@ event.on("iina.window-main.changed", (isMain: boolean) => {
     // Fetch the latest JSON data and rebuild.
 
     load();
+    loadRecorderSettings();
     rebuildMenus();
   }
 });
@@ -33,4 +35,5 @@ event.on("iina.file-loaded", (url: string) => {
 // Build the menus immediately when the script loads,
 // even if the window opens in the background.
 load();
+initRecorder();
 rebuildMenus();

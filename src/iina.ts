@@ -1,1 +1,1 @@
-export const { core, menu, utils, event, console, file } = iina;
+export const { core, menu, utils, event, console, file, mpv } = iina;

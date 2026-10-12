@@ -2,6 +2,15 @@ import { openFolderAsPlaylist, refreshAndPlayLocal } from "./localPlaylists";
 import { addUrlManually, playClipboardUrls } from "./onlinePlaylists";
 import { localPlaylists, onlinePlaylists, save, setPlaylists } from "./storage";
 import { ensureUniqueName, safeOpen } from "./utils";
+import {
+  chooseRecordingsFolder,
+  isAutoRecordEnabled,
+  isRecording,
+  openRecordingsFolder,
+  resetRecordingsFolder,
+  toggleAutoRecord,
+  toggleRecording,
+} from "./recorder";
 import { menu, utils, file } from "./iina";
 
 let firstMenuBuild = true;
@@ -40,6 +49,45 @@ export function rebuildMenus() {
     }),
   );
 
+  menu.addItem(menu.separator());
+
+  // --- Recording ---
+  const recordMenu = menu.item("Record Stream");
+  recordMenu.addSubMenuItem(
+    menu.item(
+      isRecording() ? "Stop Recording" : "Start Recording",
+      () => {
+        toggleRecording();
+      },
+      { keyBinding: "Meta+Alt+r" },
+    ),
+  );
+  recordMenu.addSubMenuItem(
+    menu.item(
+      "Auto-record Online Streams",
+      () => {
+        toggleAutoRecord();
+      },
+      { selected: isAutoRecordEnabled() },
+    ),
+  );
+
+  recordMenu.addSubMenuItem(
+    menu.item("Change Recordings Folder...", () => {
+      chooseRecordingsFolder();
+    }),
+  );
+  recordMenu.addSubMenuItem(
+    menu.item("Reset Recordings Folder", () => {
+      resetRecordingsFolder();
+    }),
+  );
+  recordMenu.addSubMenuItem(
+    menu.item("Open Recordings Folder", () => {
+      openRecordingsFolder();
+    }),
+  );
+  menu.addItem(recordMenu);
   menu.addItem(menu.separator());
 
   // --- Online Playlists ---
