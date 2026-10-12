@@ -1,6 +1,6 @@
 # Playlist Pro — IINA Plugin
 
-**Playlist Pro** is a plugin for [IINA](https://iina.io/) that allows seamless management of both Online and Local playlists. It empowers users to quickly play, rename, and delete playlists, and provides full folder scanning including nested directories for local media files.
+**Playlist Pro** is a plugin for [IINA](https://iina.io/) that allows seamless management of both Online and Local playlists. It empowers users to quickly play, rename, and delete playlists, provides full folder scanning including nested directories for local media files, and can **record online streams to disk while you watch them**.
 
 ---
 
@@ -16,6 +16,14 @@
 - **Folder Scanning:** Automatically discover all playable media in a selected folder and its subfolders.
 - **Auto-Refresh:** Simply click an existing playlist in the menu to re-scan the folder. If you've added or removed files, the playlist updates automatically before playing.
 - **Missing Folder Recovery:** If a playlist's source folder has been moved or deleted, you'll be prompted to relocate it or remove the playlist from your list.
+
+### 🔴 Stream Recording
+
+- **Watch and save at once:** Record any online stream (`http`/`https`) to disk while it plays, so you never have to stream the same video twice.
+- **No re-encoding:** The plugin uses mpv's `stream-record`, which writes the exact data received from the stream. Quality is identical to what you watched.
+- **Auto-record:** Optionally record every online stream automatically, one file per playlist item.
+- **Custom save location:** Choose any folder for your recordings; the setting is remembered.
+- **Shortcut:** Use `Cmd+Opt+R` (Meta+Alt+R) to start or stop recording.
 
 ### 🎞️ Subtitles
 
@@ -58,6 +66,30 @@ https://github.com/CatCodeDanix/iina-playlist-pro
 1. Select "Open folder & sub-folder contents as Playlist".
 2. Choose a directory on your computer.
 3. The plugin generates a unified playlist of all media files found inside.
+
+### Recording an Online Stream
+
+**Manual:**
+
+1. Play an online stream (for example from a pasted URL playlist).
+2. Press `Cmd+Opt+R`, or choose **Record Stream → Start Recording** from the plugin menu.
+3. Press `Cmd+Opt+R` again (or choose **Stop Recording**) to stop.
+
+**Automatic:**
+
+1. Choose **Record Stream → Auto-record Online Streams** to turn it on (a checkmark shows it is active).
+2. Play any online stream or playlist. Each item is saved to its own file as it starts.
+
+Recordings are saved to `~/Movies/IINA Recordings` by default (created automatically). To save somewhere else, choose **Record Stream → Change Recordings Folder…** and pick a folder; the choice is remembered. **Reset Recordings Folder** restores the default, and **Open Recordings Folder** jumps to the current one.
+
+**Good to know:**
+
+- File names are taken from the stream URL. Existing files are never overwritten; a timestamp is added if the name already exists.
+- Direct video links (`.mkv`, `.mp4`, ...) keep their format. HLS streams (`.m3u8`) and unknown types are saved as `.ts`. You can convert a `.ts` losslessly with `ffmpeg -i input.ts -c copy output.mp4`.
+- The recording contains what the player *received*. If you skip ahead past data that was not downloaded, those parts will be missing from the file. Pausing and rewinding are fine.
+- Starting a recording in the middle of a video only captures data from that point on. Use auto-record to save a video from the beginning.
+- Recording works for online streams only, not local files.
+- Only record content you have the right to download. Some services forbid it in their terms.
 
 ### Updating a Local Playlist
 
